@@ -1,39 +1,138 @@
-# <h1 align="center"> Forge Template </h1>
+Upgradeable ERC20 Vesting Vault (UUPS)
 
-**Template repository for getting started quickly with Foundry projects**
+This project implements an upgradeable ERC20 token vesting system using the UUPS proxy pattern in Solidity.
 
-![Github Actions](https://github.com/foundry-rs/forge-template/workflows/CI/badge.svg)
+The goal was to understand how real Ethereum protocols safely upgrade smart contracts while preserving user state and funds.
 
-## Getting Started
+ Problem
 
-Click "Use this template" on [GitHub](https://github.com/foundry-rs/forge-template) to create a new repository with this repo as the initial state.
+Smart contracts on Ethereum are immutable by default.
+However, real-world protocols need to:
 
-Or, if your repo already exists, run:
-```sh
-forge init
-forge build
+Fix bugs
+
+Add new features
+
+Improve security
+
+Evolve over time
+
+Redeploying contracts breaks user trust and state, so upgradeability must be handled carefully.
+
+Solution
+
+I built an ERC20 Vesting Vault that:
+
+Uses the UUPS (Universal Upgradeable Proxy Standard) pattern
+
+Supports cliff-based + linear vesting
+
+Allows controlled upgrades without losing state
+
+Enforces upgrade authorization using ownership
+
+Architecture Overview
+
+Proxy: ERC1967Proxy
+
+Implementation (V1): VestingVault
+
+Upgraded Logic (V2): VestingVaultV2
+
+Upgrade Mechanism: UUPS (upgradeTo)
+
+State Storage: Lives in proxy, not implementation
+
+Features
+
+Create vesting schedules for beneficiaries
+
+Cliff period before tokens start unlocking
+
+Linear token release over time
+
+Beneficiaries can claim vested tokens
+
+Owner can revoke unvested tokens
+
+Safe contract upgrades (V1 → V2)
+
+State preserved across upgrades
+
+ Upgrade Flow (V1 → V2)
+
+Deploy VestingVault (implementation)
+
+Deploy ERC1967Proxy pointing to V1
+
+Initialize via initialize() (no constructors)
+
+Deploy VestingVaultV2
+
+Call upgradeTo(newImplementation) from proxy owner
+
+Verify that existing vesting data remains intact
+
+🧪 Testing
+
+Written using Foundry
+
+Covers:
+
+Vesting creation
+
+Token release after cliff
+
+Revocation logic
+
+Upgrade safety & state preservation
+
+Run tests:
+
 forge test
-```
 
-## Writing your first test
+Deployment
 
-All you need is to `import forge-std/Test.sol` and then inherit it from your test contract. Forge-std's Test contract comes with a pre-instatiated [cheatcodes environment](https://book.getfoundry.sh/cheatcodes/), the `vm`. It also has support for [ds-test](https://book.getfoundry.sh/reference/ds-test.html)-style logs and assertions. Finally, it supports Hardhat's [console.log](https://github.com/brockelmore/forge-std/blob/master/src/console.sol). The logging functionalities require `-vvvv`.
+Deployed on Sepolia testnet using Foundry scripts.
 
-```solidity
-pragma solidity 0.8.10;
+Implementation & Proxy deployed
 
-import "forge-std/Test.sol";
+Contracts verified
 
-contract ContractTest is Test {
-    function testExample() public {
-        vm.roll(100);
-        console.log(1);
-        emit log("hi");
-        assertTrue(true);
-    }
-}
-```
+Upgrade executed on-chain using upgradeTo
 
-## Development
+🛠 Tech Stack
 
-This project uses [Foundry](https://getfoundry.sh). See the [book](https://book.getfoundry.sh/getting-started/installation.html) for instructions on how to install and use Foundry.
+Solidity ^0.8.x
+
+OpenZeppelin Contracts & Upgradeable
+
+Foundry (testing & deployment)
+
+ERC1967 + UUPS pattern
+
+Sepolia Testnet
+
+Key Learnings
+
+Why initialize() replaces constructors in upgradeable contracts
+
+How delegatecall affects storage layout
+
+How UUPS restricts upgrades to authorized accounts
+
+Why storage compatibility is critical
+
+How production protocols manage upgrades safely
+
+🔗 Links
+
+GitHub Repo: https://github.com/harshkumarrai/ethereum-solidity-projects-
+
+Focus: Smart contract architecture & upgrade safety
+
+Frontend: Minimal UI for interaction (contract-focused project)
+
+ Notes
+
+This project intentionally focuses on backend smart contract design.
