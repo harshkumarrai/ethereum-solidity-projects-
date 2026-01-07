@@ -27,7 +27,7 @@ contract TokenVesting{
     }
 
     function vestedAmount() public view returns (uint256){ // it helps to find how much tokens r vested till now
-        uint256 total=token.balanceof(address(beneficiary))+released;
+        uint256 total=token.balanceOf(address(beneficiary))+released;
         if(block.timestamp<cliff){
             return 0;
         }else if(block.timestamp>=(start+duration)){
@@ -44,6 +44,6 @@ contract TokenVesting{
         uint256 amount=releasable();
         require((amount>0),"nothing to release");
         released+=amount;
-        token.transfer(beneficiary,amount);
+        require(token.transfer(beneficiary,amount),"transfer failed");
     }
 }
