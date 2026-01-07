@@ -1,3 +1,14 @@
+# ERC20 Vesting + Merkle Airdrop
+
+Core ERC20 vesting contract with:
+- Cliff + linear vesting
+- Time-based release logic
+- Foundry tests for edge cases
+
+Next: Merkle proof-based airdrop integration.
+
+
+
 ## Foundry
 
 **Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**

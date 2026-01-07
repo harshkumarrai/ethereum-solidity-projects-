@@ -11,78 +11,150 @@ contract MockERC20 is ERC20{
 
 contract TokenVestingTest is Test{
     MockERC20 token;
-    TokenVesting vesting;
-    address beneficiary=address(0xBEEF);
+    MerkelVesting vesting;
+    address beneficiary=address(0xBEEF);  //user
+    address attacker = address(0xCAFE); //malicious user
+    uint256 allocation=100_000 ether;
     uint64 start;
     uint64 cliffduration=30 days;
     uint64 duration=180 days;
-    uint256 constant Total_Tokens=1_000_000 ether;
-
+    bytes32 root;
+    bytes32[] proof;  //empty as proof means path from lef to root ,  as one leaf is there so empty proof
     function setUp()public {
         token=new MockERC20();
         start=uint64(block.timestamp);
-        vesting=new TokenVesting(
+        bytes32 leaf=keccak256(abi.encodePacked(beneficiary,allocation));
+        // as there is single leaf so root will be same to leaf;
+        root=leaf;
+        vesting=new MerkelVesting(
             address(token),
-            beneficiary,
+            root,
             start,
             cliffduration,
             duration
         );
-        require(token.transfer(address(vesting),1_000_000 ether),"trasfer failed");
+        require(token.transfer(address(vesting),allocation),"trasfer failed");
     }
-     function test_ReleasableBeforeCliff() public {
-      vm.warp(start+10 days);
-      uint256 releasable=vesting.releasable();
-      assertEq(releasable,0);
-    }
-       function test_ReleasableAtCliff() public {
-        vm.warp(start+cliffduration);
-        uint256 releasable=vesting.releasable();
-        console.log("jaa",releasable);
-        assertGt(releasable,0);
-        
-    }
-     function test_PartialVestingMidway() public {
-        vm.warp(start+90 days);
-        uint256 releasable=vesting.releasable();
-        uint256 expected=(Total_Tokens * 90 days)/duration;
-        assertEq(releasable, expected);
-    }
-     function test_FullVestingAfterDuration() public {
-        vm.warp(start + duration);
+    //testing claim function
+    function test_Claim() public {
+        vm.prank(beneficiary);
+        vesting.claim(allocation,proof);
+        uint256 temp1=vesting.totalallocation(beneficiary);
+        assertEq(temp1, allocation);
 
-        uint256 releasable = vesting.releasable();
-        assertEq(releasable, Total_Tokens);
     }
-      function test_ReleaseTransfersTokens() public {
+    function test_Revertinvalidproof() public{
+         vm.prank(beneficiary);
+         vm.expectRevert("invalid proof");
+        vesting.claim(allocation+1,proof);
+
+    }
+
+
+    function test_RevertdoubleClaim() public {
+        vm.prank(beneficiary);
+        vesting.claim(allocation, proof);
+
+        vm.prank(beneficiary);
+        vm.expectRevert("already claimed");
+        vesting.claim(allocation, proof);
+    }
+
+    //testing vestedamount and releasable functions
+    function test_ReleasableBeforeCliffIsZero() public {
+        vm.prank(beneficiary);
+        vesting.claim(allocation, proof);
+
+        vm.warp(start + 10 days);
+        uint256 releasable = vesting.releasable(beneficiary);
+
+        assertEq(releasable, 0);
+    }
+
+    function test_ReleasableAtCliffIsNonZero() public {
+        vm.prank(beneficiary);
+        vesting.claim(allocation, proof);
+
+        vm.warp(start + cliffduration);
+        uint256 releasable = vesting.releasable(beneficiary);
+
+        assertGt(releasable, 0);
+    }
+
+    function test_PartialVestingMidway() public {
+        vm.prank(beneficiary);
+        vesting.claim(allocation, proof);
+
         vm.warp(start + 90 days);
 
-        uint256 beforeBalance = token.balanceOf(beneficiary);
+        uint256 releasable = vesting.releasable(beneficiary);
+        uint256 expected = (allocation * 90 days) / duration;
 
+        assertEq(releasable, expected);
+    }
+
+    function test_FullVestingAfterDuration() public {
+        vm.prank(beneficiary);
+        vesting.claim(allocation, proof);
+
+        vm.warp(start + duration);
+
+        uint256 releasable = vesting.releasable(beneficiary);
+        assertEq(releasable, allocation);
+    }
+
+    //testing release function
+      function test_ReleaseTransfersTokens() public {
+        vm.prank(beneficiary);
+        vesting.claim(allocation, proof);
+
+        vm.warp(start + cliffduration + 10 days);
+
+        uint256 before = token.balanceOf(beneficiary);
+
+        vm.prank(beneficiary);
         vesting.release();
 
         uint256 afterBalance = token.balanceOf(beneficiary);
-        assertGt(afterBalance, beforeBalance);
+        assertGt(afterBalance, before);
     }
 
-     function test_NoDoubleRelease() public {
-        vm.warp(start + 90 days);
+    function test_RevertReleaseBeforeClaim() public {
+        vm.prank(beneficiary);
+        vm.expectRevert("nothing to release");
+        vesting.release();
+    }
+
+    function test_NoDoubleRelease() public {
+        vm.prank(beneficiary);
+        vesting.claim(allocation, proof);
+
+        vm.warp(start + 60 days);
+        vm.prank(beneficiary);
         vesting.release();
 
         uint256 firstRelease = token.balanceOf(beneficiary);
 
         vm.warp(start + 120 days);
+        vm.prank(beneficiary);
         vesting.release();
 
         uint256 secondRelease = token.balanceOf(beneficiary);
 
         assertGt(secondRelease, firstRelease);
-        assertLe(secondRelease, Total_Tokens);
+        assertLe(secondRelease, allocation);
     }
-    function test_RevertIfNothingToRelease() public {
-        vm.warp(start + 10 days);
 
+    //testing that attacker who is not in merkle tree cannot claim or release tokens
+     function test_Attacker() public {
+        vm.prank(beneficiary);
+        vesting.claim(allocation, proof);
+
+        vm.warp(start + duration);
+
+        vm.prank(attacker);
         vm.expectRevert("nothing to release");
         vesting.release();
     }
+    
 }
