@@ -1,16 +1,16 @@
 # ERC20 Merkle Vesting
 
-A gas-efficient ERC20 vesting contract that uses Merkle proofs to verify user
-allocations and applies a global time-based vesting schedule.
+A gas efficient ERC20 vesting contract that uses Merkle proofs to verify user
+allocations and applies a global time based vesting schedule.
 
 ## Overview
-This contract enables large-scale token distributions by storing only a single
-Merkle root on-chain. Eligible users prove their allocation using a Merkle proof
+This contract enables large scale token distributions by storing only a single
+Merkle root on chain. Eligible users prove their allocation using a Merkle proof
 and receive tokens gradually according to a cliff and linear vesting schedule.
 
 ## Features
-- Merkle proof–based allocation verification
-- One-time claim per user
+- Merkle proofbased allocation verification
+- One time claim per user
 - Global vesting schedule (start, cliff, duration)
 - Linear vesting with secure release logic
 - Protection against double claim and early release
@@ -36,5 +36,5 @@ and receive tokens gradually according to a cliff and linear vesting schedule.
 Tests cover:
 - Valid and invalid Merkle proofs
 - Double claim prevention
-- Vesting before cliff, mid-vesting, and after duration
+- Vesting before cliff, mid vesting, and after duration
 - Release safety and accounting correctness
