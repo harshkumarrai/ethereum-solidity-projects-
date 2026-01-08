@@ -1,0 +1,3 @@
+[submodule "Projects/staking_protocol/lib/openzeppelin-contracts"]
+	path = Projects/staking_protocol/lib/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
