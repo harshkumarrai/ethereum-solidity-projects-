@@ -4,146 +4,128 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract Staking {
-    IERC20 public immutable stakingToken;
-    IERC20 public immutable rewardToken;
-
-    uint256 public rewardRate; // rewards per second
-    uint256 public lastUpdateTime;
-    uint256 public accRewardPerShare; // scaled by 1e18
-
-    uint256 public totalStaked;
-
-    mapping(address => uint256) public staked;
-    mapping(address => uint256) public rewardDebt;
-
-    address public admin;
-
+   IERC20 public immutable staketoken;
+   IERC20 public immutable rewardtoken;
+   uint256 public rewardrate;  //gives inf in each secon how much reward tokens are generated
+   uint256 public lastupdatedtime;  // gives inf about time when updates where done
+    uint256 public accrewardpershare;  //how much reward in each share
+   uint256 public totalstaked;
+   mapping(address=>uint256)public staked; 
+   mapping(address=>uint256)public currentreward;  //rewarddebt
+   address public admin;
+   constructor(
+    address _stakingtoken,
+    address _rewardtoken,
+    uint256 _rewardrate
+   ){
+        staketoken= IERC20(_stakingtoken);
+        rewardtoken=IERC20(_rewardtoken);
+        rewardrate=_rewardrate;
+        lastupdatedtime=block.timestamp;
+        admin=msg.sender;
+   }
+   modifier onlyadmin(){
+    require(msg.sender==admin,"not admin");
+    _;
+   }
     event Staked(address indexed user, uint256 amount);
     event Withdrawn(address indexed user, uint256 amount);
-    event RewardClaimed(address indexed user, uint256 amount);
+        event RewardClaimed(address indexed user, uint256 amount);
     event Slashed(address indexed user, uint256 amount);
 
-    constructor(
-        address _stakingToken,
-        address _rewardToken,
-        uint256 _rewardRate
-    ) {
-        stakingToken = IERC20(_stakingToken);
-        rewardToken = IERC20(_rewardToken);
-        rewardRate = _rewardRate;
-        lastUpdateTime = block.timestamp;
-        admin = msg.sender;
+   function updatereward() internal{
+    if(block.timestamp<lastupdatedtime)return;
+    if(totalstaked==0){
+        lastupdatedtime=block.timestamp;
+        return;
     }
-
-
-    modifier onlyAdmin() {
-        require(msg.sender == admin, "not admin");
-        _;
+    uint256 timelapsed=block.timestamp-lastupdatedtime;
+    uint256 rewards=timelapsed*rewardrate;
+    accrewardpershare+=((rewards*1e18)/totalstaked);
+    lastupdatedtime=block.timestamp;
+   }
+   function pendingreward(address user) public view returns(uint256){
+    uint256 temp1=accrewardpershare;
+    if(block.timestamp>lastupdatedtime && totalstaked>0 ){
+        uint256 timeelapsed=block.timestamp-lastupdatedtime;
+        uint256 rewards=(timeelapsed*rewardrate);
+        temp1+=(rewards*1e18)/totalstaked;
     }
+    return (staked[user]*temp1)/1e18 - currentreward[user];
 
+   }
+   function stake(uint256 amount)external{
+            require(amount > 0, "zero amount");
 
-    function _updateRewards() internal {
-        if (block.timestamp <= lastUpdateTime) return;
-
-        if (totalStaked == 0) {
-            lastUpdateTime = block.timestamp;
-            return;
-        }
-
-        uint256 timeElapsed = block.timestamp - lastUpdateTime;
-        uint256 rewards = timeElapsed * rewardRate;
-
-        accRewardPerShare += (rewards * 1e18) / totalStaked;
-        lastUpdateTime = block.timestamp;
-    }
-
-    function pendingRewards(address user) public view returns (uint256) {
-        uint256 _accRewardPerShare = accRewardPerShare;
-
-        if (block.timestamp > lastUpdateTime && totalStaked > 0) {
-            uint256 timeElapsed = block.timestamp - lastUpdateTime;
-            uint256 rewards = timeElapsed * rewardRate;
-            _accRewardPerShare += (rewards * 1e18) / totalStaked;
-        }
-
-        return
-            (staked[user] * _accRewardPerShare) / 1e18 -
-            rewardDebt[user];
-    }
-
-
-    function stake(uint256 amount) external {
-        require(amount > 0, "zero amount");
-
-        _updateRewards();
+        updatereward();
 
     
-        uint256 pending = pendingRewards(msg.sender);
+        uint256 pending = pendingreward(msg.sender);
         if (pending > 0) {
-            rewardToken.transfer(msg.sender, pending);
+            rewardtoken.transfer(msg.sender, pending);
             emit RewardClaimed(msg.sender, pending);
         }
 
-        stakingToken.transferFrom(msg.sender, address(this), amount);
+        staketoken.transferFrom(msg.sender, address(this), amount);
 
-        totalStaked += amount;
+        totalstaked += amount;
         staked[msg.sender] += amount;
-        rewardDebt[msg.sender] =
-            (staked[msg.sender] * accRewardPerShare) /
+        currentreward[msg.sender] =
+            (staked[msg.sender] * accrewardpershare) /
             1e18;
 
         emit Staked(msg.sender, amount);
-    }
-
-    function withdraw(uint256 amount) external {
+   }
+   
+        function withdraw(uint256 amount) external {
         require(amount > 0, "zero amount");
         require(staked[msg.sender] >= amount, "insufficient stake");
 
-        _updateRewards();
+        updatereward();
 
-        uint256 pending = pendingRewards(msg.sender);
+        uint256 pending = pendingreward(msg.sender);
         if (pending > 0) {
-            rewardToken.transfer(msg.sender, pending);
+            rewardtoken.transfer(msg.sender, pending);
             emit RewardClaimed(msg.sender, pending);
         }
 
         staked[msg.sender] -= amount;
-        totalStaked -= amount;
+        totalstaked -= amount;
 
-        stakingToken.transfer(msg.sender, amount);
+        staketoken.transfer(msg.sender, amount);
 
-        rewardDebt[msg.sender] =
-            (staked[msg.sender] * accRewardPerShare) /
+        currentreward[msg.sender] =
+            (staked[msg.sender] * accrewardpershare) /
             1e18;
 
         emit Withdrawn(msg.sender, amount);
     }
 
-    function claimRewards() external {
-        _updateRewards();
+    function claimrewards() external {
+        updatereward();
 
-        uint256 pending = pendingRewards(msg.sender);
+        uint256 pending = pendingreward(msg.sender);
         require(pending > 0, "no rewards");
 
-        rewardDebt[msg.sender] =
-            (staked[msg.sender] * accRewardPerShare) /
+        currentreward[msg.sender] =
+            (staked[msg.sender] * accrewardpershare) /
             1e18;
 
-        rewardToken.transfer(msg.sender, pending);
+        rewardtoken.transfer(msg.sender, pending);
         emit RewardClaimed(msg.sender, pending);
     }
 
    
-    function slash(address user, uint256 amount) external onlyAdmin {
+    function slash(address user, uint256 amount) external onlyadmin() {
         require(staked[user] >= amount, "slash too much");
 
-        _updateRewards();
+        updatereward();
 
         staked[user] -= amount;
-        totalStaked -= amount;
+        totalstaked -= amount;
 
-        rewardDebt[user] =
-            (staked[user] * accRewardPerShare) /
+      currentreward  [user] =
+            (staked[user] * accrewardpershare) /
             1e18;
 
         emit Slashed(user, amount);

@@ -25,8 +25,7 @@ contract StakingTest is Test {
     address bob   = address(0xB0B);
     address admin = address(this);
 
-    uint256 constant REWARD_RATE = 10 ether; // 10 tokens/sec
-
+    uint256 constant REWARD_RATE = 10 ether; 
     function setUp() public {
         stakeToken = new MockERC20("StakeToken", "STK");
         rewardToken = new MockERC20("RewardToken", "RWD");
@@ -52,15 +51,15 @@ contract StakingTest is Test {
     }
 
 
-    function test_StakeUpdatesBalance() public {
+    function test_stakeupdatesbalance() public {
         vm.prank(alice);
         staking.stake(100 ether);
 
         assertEq(staking.staked(alice), 100 ether);
-        assertEq(staking.totalStaked(), 100 ether);
+        assertEq(staking.totalstaked(), 100 ether);
     }
 
-    function test_WithdrawReducesStake() public {
+    function test_withdrawreducestake() public {
         vm.prank(alice);
         staking.stake(100 ether);
 
@@ -68,17 +67,17 @@ contract StakingTest is Test {
         staking.withdraw(40 ether);
 
         assertEq(staking.staked(alice), 60 ether);
-        assertEq(staking.totalStaked(), 60 ether);
+        assertEq(staking.totalstaked(), 60 ether);
     }
 
 
-    function test_SingleUserEarnsRewardsOverTime() public {
+    function test_singleUserEarnsRewardsOverTime() public {
         vm.prank(alice);
         staking.stake(100 ether);
 
         vm.warp(block.timestamp + 10);
 
-        uint256 pending = staking.pendingRewards(alice);
+        uint256 pending = staking.pendingreward(alice);
         assertApproxEqAbs(pending, 100 ether, 1);
     }
 
@@ -93,8 +92,8 @@ contract StakingTest is Test {
 
         vm.warp(block.timestamp + 10);
 
-        uint256 aliceRewards = staking.pendingRewards(alice);
-        uint256 bobRewards = staking.pendingRewards(bob);
+        uint256 aliceRewards = staking.pendingreward(alice);
+        uint256 bobRewards = staking.pendingreward(bob);
 
         assertApproxEqAbs(aliceRewards, 150 ether, 1);
         assertApproxEqAbs(bobRewards, 50 ether, 1);
@@ -110,7 +109,7 @@ contract StakingTest is Test {
         uint256 before = rewardToken.balanceOf(alice);
 
         vm.prank(alice);
-        staking.claimRewards();
+        staking.claimrewards();
 
         uint256 afterBal = rewardToken.balanceOf(alice);
 
@@ -123,7 +122,7 @@ contract StakingTest is Test {
 
         vm.prank(alice);
         vm.expectRevert("no rewards");
-        staking.claimRewards();
+        staking.claimrewards();
     }
 
     function test_WithdrawPaysPendingRewards() public {
@@ -151,7 +150,7 @@ contract StakingTest is Test {
         staking.slash(alice, 30 ether);
 
         assertEq(staking.staked(alice), 70 ether);
-        assertEq(staking.totalStaked(), 70 ether);
+        assertEq(staking.totalstaked(), 70 ether);
     }
 
     function test_NonAdminCannotSlash() public {
